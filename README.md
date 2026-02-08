@@ -90,6 +90,17 @@ This project enforces [Conventional Commits](https://www.conventionalcommits.org
 
 This format is used to automate the semantic versioning and changelog generation via the Release Please workflow.
 
+### Release Process
+
+Releases are automated using [Release Please](https://github.com/google-github-actions/release-please).
+
+1.  **Commit**: Push changes using Conventional Commits.
+2.  **Automated PR**: The Release Please bot analyzes new commits and automatically creates a "Release PR" with the updated `CHANGELOG.md` and calculated version bump (e.g., `chore(main): release v0.2.0`).
+3.  **Merge**: When the Release PR is merged, the bot:
+    *   Creates a GitHub Release.
+    *   Creates a Git Tag.
+4.  **Artifacts**: The creation of the tag triggers GoReleaser to build and upload the provider binaries to the release.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
