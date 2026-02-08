@@ -53,6 +53,31 @@ provider_installation {
 
 ## Configuration
 
+This provider communicates with the **Pangolin Integration API**.
+
+### Enabling Integration API in Pangolin
+
+You must enable the Integration API in your Pangolin server configuration (`config.yml`).
+
+```yaml
+flags:
+  enable_integration_api: true
+
+server:
+  integration_port: 3003 # Optional, defaults to 3003
+```
+
+Ensure the port `3003` (or your configured port) is exposed and accessible to the machine running Terraform.
+
+```hcl
+provider "pangolin" {
+  token    = "your-api-token"
+  base_url = "https://your-pangolin-instance.com:3003/v1" # Point to the Integration API
+}
+```
+
+### Provider Configuration
+
 ```hcl
 provider "pangolin" {
   token    = "your-api-token"
