@@ -22,6 +22,7 @@ resource "pangolin_site_resource" "web_app" {
   mode        = "host"
   site_id     = 123
   destination = "webapp.internal"
+  alias       = "webapp.your-domain.com"
   enabled     = true
   user_ids    = []
   role_ids    = [pangolin_role.admin.id]

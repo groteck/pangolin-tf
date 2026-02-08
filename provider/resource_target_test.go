@@ -8,6 +8,9 @@ import (
 )
 
 func TestAccTarget_Basic(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("Acceptance tests skipped unless env 'TF_ACC' set")
+	}
 	siteID := getTestSiteID(t)
 
 	resource.Test(t, resource.TestCase{
