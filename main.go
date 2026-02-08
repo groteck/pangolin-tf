@@ -9,6 +9,12 @@ import (
 	"github.com/pangolin-net/terraform-provider-pangolin/provider"
 )
 
+var (
+	// these will be set by the linker
+	version string = "dev"
+	commit  string = "none"
+)
+
 func main() {
 	var debug bool
 
