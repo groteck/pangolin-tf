@@ -40,8 +40,11 @@ checksum:
 signs:
   - artifacts: checksum
     args:
+      - "--batch"
       - "--local-user"
       - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--pinentry-mode"
+      - "loopback"
       - "--detach-sign"
       - "${artifact}"
 

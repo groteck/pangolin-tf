@@ -27,6 +27,8 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
+      - name: List keys
+        run: gpg --list-secret-keys --keyid-format LONG
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
