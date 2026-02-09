@@ -50,6 +50,7 @@ signs:
       - "${artifact}"
 
 release:
+  replace_existing_artifacts: true
   # If you want to use a custom GitHub token
   # github:
   #   owner: user
