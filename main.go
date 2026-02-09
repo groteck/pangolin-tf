@@ -22,7 +22,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/pangolin-net/pangolin",
+		Address: "registry.terraform.io/groteck/pangolin",
 		Debug:   debug,
 	}
 
