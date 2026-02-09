@@ -1,4 +1,4 @@
-.PHONY: test-env-up test-env-down test-env-clean test-acc
+.PHONY: test-env-up test-env-down test-env-clean test-acc docs
 
 # Start the test environment for manual setup
 test-env-up:

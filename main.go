@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"github.com/pangolin-net/terraform-provider-pangolin/provider"
+	"github.com/groteck/terraform-provider-pangolin/provider"
 )
 
 var (

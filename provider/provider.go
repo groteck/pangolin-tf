@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/pangolin-net/terraform-provider-pangolin/internal/client"
+	"github.com/groteck/terraform-provider-pangolin/internal/client"
 )
 
 func New(version string) func() provider.Provider {

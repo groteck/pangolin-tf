@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/pangolin-net/terraform-provider-pangolin/internal/client"
+	"github.com/groteck/terraform-provider-pangolin/internal/client"
 )
 
 var _ resource.Resource = &roleResource{}

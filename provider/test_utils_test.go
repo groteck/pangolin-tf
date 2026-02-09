@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
-	"github.com/pangolin-net/terraform-provider-pangolin/internal/client"
+	"github.com/groteck/terraform-provider-pangolin/internal/client"
 )
 
 const (

@@ -19,7 +19,7 @@ export ASDF_TERRAFORM_VERSION=1.10.0
 # Configure local plugin mirror
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)
-PLUGIN_DIR="$TEST_DIR/plugins/registry.terraform.io/pangolin-net/pangolin/0.1.0/${OS}_${ARCH}"
+PLUGIN_DIR="$TEST_DIR/plugins/registry.terraform.io/groteck/pangolin/0.1.0/${OS}_${ARCH}"
 mkdir -p "$PLUGIN_DIR"
 cp "$PROVIDER_PATH/terraform-provider-pangolin" "$PLUGIN_DIR/terraform-provider-pangolin_v0.1.0"
 
