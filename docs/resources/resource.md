@@ -28,15 +28,17 @@ resource "pangolin_resource" "example" {
 
 ### Required
 
-- `domain_id` (String) The ID of the domain.
 - `name` (String) The name of the resource.
 - `org_id` (String) The ID of the organization.
 - `protocol` (String) The protocol of the resource (tcp or udp).
-- `subdomain` (String) The subdomain for the resource.
 
 ### Optional
 
+- `domain_id` (String) The ID of the domain.
+- `enabled` (Boolean) Wether the resource is enabled or not.
 - `http` (Boolean) Whether the resource is an HTTP resource.
+- `proxy_port` (Number) The port to proxy for raw resources (when http is set to false).
+- `subdomain` (String) The subdomain for the resource.
 
 ### Read-Only
 
