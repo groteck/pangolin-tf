@@ -25,10 +25,23 @@ func NewClient(baseURL, token string) *Client {
 	}
 }
 
-type apiResponse struct {
-	Data    json.RawMessage `json:"data"`
-	Success bool            `json:"success"`
-	Message string          `json:"message"`
+type ApiResponse struct {
+	Data    json.RawMessage  `json:"data"`
+	Success bool             `json:"success"`
+	Error   bool             `json:"error"`
+	Message string           `json:"message"`
+	Status  int              `json:"status"`
+	Stack   *json.RawMessage `json:"stack,omitempty"`
+}
+
+type APIError struct {
+	StatusCode  int
+	ApiResponse ApiResponse
+}
+
+func (e *APIError) Error() string {
+	// TODO add stack here
+	return fmt.Sprintf("API error (%d): %s", e.StatusCode, e.ApiResponse.Message)
 }
 
 func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error) {
@@ -61,16 +74,27 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(respBody))
+		var apiResp ApiResponse
+		if err := json.Unmarshal(respBody, &apiResp); err != nil {
+			return nil, fmt.Errorf("API wrong StatusCode : %d\nAPI wrong Response Type : %s", resp.StatusCode, string(respBody))
+		}
+
+		return nil, &APIError{
+			StatusCode:  resp.StatusCode,
+			ApiResponse: apiResp,
+		}
 	}
 
-	var apiResp apiResponse
+	var apiResp ApiResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API wrong ResponseType : %s", string(respBody))
 	}
 
-	if !apiResp.Success {
-		return nil, fmt.Errorf("API failure: %s", apiResp.Message)
+	if !apiResp.Success || apiResp.Error {
+		return nil, &APIError{
+			StatusCode:  resp.StatusCode,
+			ApiResponse: apiResp,
+		}
 	}
 
 	return apiResp.Data, nil
@@ -336,15 +360,20 @@ func (c *Client) GetSiteResourceClients(resID int) ([]int, error) {
 
 // Resource definitions
 type Resource struct {
-	ID        int    `json:"resourceId,omitempty"`
-	Name      string `json:"name"`
-	Protocol  string `json:"protocol"`
-	Http      bool   `json:"http"`
-	Subdomain string `json:"subdomain"`
-	DomainID  string `json:"domainId"`
+	ID        int     `json:"resourceId,omitempty"`
+	Enabled   *bool   `json:"enabled,omitempty"`
+	SSO       *bool   `json:"sso,omitempty"`
+	Name      string  `json:"name"`
+	Protocol  *string `json:"protocol,omitempty"`
+	Http      *bool   `json:"http,omitempty"`
+	ProxyPort *int32  `json:"proxyPort,omitempty"`
+	Subdomain *string `json:"subdomain,omitempty"`
+	DomainID  *string `json:"domainId,omitempty"`
 }
 
-func (c *Client) CreateResource(orgID string, res *Resource) (*Resource, error) {
+func (c *Client) CreateResource(orgID string, res Resource) (*Resource, error) {
+	res.Enabled = nil
+	res.SSO = nil
 	path := fmt.Sprintf("/org/%s/resource", orgID)
 	data, err := c.doRequest("PUT", path, res)
 	if err != nil {
@@ -366,7 +395,9 @@ func (c *Client) GetResource(resID int) (*Resource, error) {
 	return &out, err
 }
 
-func (c *Client) UpdateResource(resID int, res *Resource) (*Resource, error) {
+func (c *Client) UpdateResource(resID int, res Resource) (*Resource, error) {
+	res.Http = nil
+	res.Protocol = nil
 	path := fmt.Sprintf("/resource/%d", resID)
 	data, err := c.doRequest("POST", path, res)
 	if err != nil {
@@ -379,6 +410,161 @@ func (c *Client) UpdateResource(resID int, res *Resource) (*Resource, error) {
 
 func (c *Client) DeleteResource(resID int) error {
 	path := fmt.Sprintf("/resource/%d", resID)
+	_, err := c.doRequest("DELETE", path, nil)
+	return err
+}
+
+// Organization definitions
+type Organization struct {
+	ID            string  `json:"orgId,omitempty"`
+	Name          string  `json:"name"`
+	Subnet        *string `json:"subnet,omitempty"`
+	UtilitySubnet *string `json:"utilitySubnet,omitempty"`
+}
+
+func (c *Client) CreateOrganization(org Organization) (*Organization, error) {
+	data, err := c.doRequest("PUT", "/org", org)
+	if err != nil {
+		return nil, err
+	}
+	var newOrg Organization
+	out := struct {
+		Org *Organization `json:"org"`
+	}{Org: &newOrg}
+	err = json.Unmarshal(data, &out)
+	return out.Org, err
+}
+
+func (c *Client) GetOrganization(orgID string) (*Organization, error) {
+	path := fmt.Sprintf("/org/%s", orgID)
+	data, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	var newOrg Organization
+	out := struct {
+		Org *Organization `json:"org"`
+	}{Org: &newOrg}
+	err = json.Unmarshal(data, &out)
+	return out.Org, err
+}
+
+func (c *Client) UpdateOrganization(orgID string, org Organization) (*Organization, error) {
+	org.Subnet = nil
+	org.UtilitySubnet = nil
+	path := fmt.Sprintf("/org/%s", orgID)
+	data, err := c.doRequest("POST", path, org)
+	if err != nil {
+		return nil, err
+	}
+	var udpatedOrg Organization
+	out := struct {
+		Org *Organization `json:"org"`
+	}{Org: &udpatedOrg}
+	err = json.Unmarshal(data, &out)
+	return out.Org, err
+}
+
+func (c *Client) DeleteOrganization(orgID string) error {
+	path := fmt.Sprintf("/org/%s", orgID)
+	_, err := c.doRequest("DELETE", path, nil)
+	return err
+}
+
+// Idp definitions
+type Idp struct {
+	ID                 *int64  `json:"idpId,omitempty"`
+	Name               string  `json:"name"`
+	ClientID           string  `json:"clientId"`
+	ClientSecret       string  `json:"clientSecret"`
+	AuthURL            string  `json:"authUrl"`
+	TokenURL           string  `json:"tokenUrl"`
+	IdentifierPath     *string `json:"identifierPath"`
+	EmailPath          *string `json:"emailPath,omitempty"`
+	NamePath           *string `json:"namePath,omitempty"`
+	Scopes             string  `json:"scopes"`
+	AutoProvision      *bool   `json:"autoProvision,omitempty"`
+	DefaultRoleMapping *string `json:"defaultRoleMapping,omitempty"`
+	DefaultOrgMapping  *string `json:"defaultOrgMapping,omitempty"`
+	Tags               *string `json:"tags,omitempty"`
+}
+
+func (c *Client) CreateIdp(idp Idp) (*Idp, error) {
+	idp.DefaultRoleMapping = nil
+	idp.DefaultOrgMapping = nil
+	data, err := c.doRequest("PUT", "/idp/oidc", idp)
+	if err != nil {
+		return nil, err
+	}
+	out := struct {
+		IdpID int64 `json:"idpId"`
+	}{}
+	err = json.Unmarshal(data, &out)
+	if err != nil {
+		return nil, err
+	}
+	return c.GetIdp(out.IdpID)
+}
+
+func (c *Client) GetIdp(idpID int64) (*Idp, error) {
+	path := fmt.Sprintf("/idp/%d", idpID)
+	data, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := struct {
+		Idp struct {
+			ID                 int64   `json:"idpId"`
+			Name               string  `json:"name"`
+			AutoProvision      bool    `json:"autoProvision"`
+			DefaultRoleMapping string  `json:"defaultRoleMapping"`
+			DefaultOrgMapping  string  `json:"defaultOrgMapping"`
+			Tags               *string `json:"tags"`
+		} `json:"idp"`
+		IdpOidcConfig struct {
+			ClientID       string  `json:"clientId"`
+			ClientSecret   string  `json:"clientSecret"`
+			AuthURL        string  `json:"authUrl"`
+			TokenURL       string  `json:"tokenUrl"`
+			IdentifierPath *string `json:"identifierPath"`
+			EmailPath      *string `json:"emailPath"`
+			NamePath       *string `json:"namePath"`
+			Scopes         string  `json:"scopes"`
+		} `json:"idpOidcConfig"`
+	}{}
+	err = json.Unmarshal(data, &out)
+	if err != nil {
+		return nil, err
+	}
+	return &Idp{
+		ID:                 &out.Idp.ID,
+		Name:               out.Idp.Name,
+		AutoProvision:      &out.Idp.AutoProvision,
+		DefaultRoleMapping: &out.Idp.DefaultRoleMapping,
+		DefaultOrgMapping:  &out.Idp.DefaultOrgMapping,
+		Tags:               out.Idp.Tags,
+		ClientID:           out.IdpOidcConfig.ClientID,
+		ClientSecret:       out.IdpOidcConfig.ClientSecret,
+		AuthURL:            out.IdpOidcConfig.AuthURL,
+		TokenURL:           out.IdpOidcConfig.TokenURL,
+		IdentifierPath:     out.IdpOidcConfig.IdentifierPath,
+		EmailPath:          out.IdpOidcConfig.EmailPath,
+		NamePath:           out.IdpOidcConfig.NamePath,
+		Scopes:             out.IdpOidcConfig.Scopes,
+	}, nil
+}
+
+func (c *Client) UpdateIdp(idpID int64, res Idp) (*Idp, error) {
+	path := fmt.Sprintf("/idp/%d/oidc", idpID)
+	_, err := c.doRequest("POST", path, res)
+	if err != nil {
+		return nil, err
+	}
+	return c.GetIdp(idpID)
+}
+
+func (c *Client) DeleteIdp(idpID int64) error {
+	path := fmt.Sprintf("/idp/%d", idpID)
 	_, err := c.doRequest("DELETE", path, nil)
 	return err
 }

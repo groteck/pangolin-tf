@@ -89,6 +89,8 @@ func (p *pangolinProvider) Resources(_ context.Context) []func() resource.Resour
 		NewTargetResource,
 		NewRoleResource,
 		NewResourceResource,
+		NewOrganizationResource,
+		NewIdpResource,
 	}
 }
 
