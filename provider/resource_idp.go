@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"context"
+    "context"
 	"errors"
 	"fmt"
 
@@ -16,18 +16,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-var _ resource.Resource = &resourceIdp{}
-var _ resource.ResourceWithImportState = &resourceIdp{}
+var _ resource.Resource = &idpResource{}
+var _ resource.ResourceWithImportState = &idpResource{}
 
 func NewIdpResource() resource.Resource {
-	return &resourceIdp{}
+	return &idpResource{}
 }
 
-type resourceIdp struct {
+type idpResource struct {
 	client *client.Client
 }
 
-type resourceIdpModel struct {
+type idpResourceModel struct {
 	ID                 types.Int64  `tfsdk:"id"`
 	Name               types.String `tfsdk:"name"`
 	ClientID           types.String `tfsdk:"client_id"`
@@ -44,11 +44,11 @@ type resourceIdpModel struct {
 	DefaultOrgMapping  types.String `tfsdk:"default_org_mapping"`
 }
 
-func (r *resourceIdp) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *idpResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_idp"
 }
 
-func (r *resourceIdp) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *idpResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages idps.",
 		Attributes: map[string]schema.Attribute{
@@ -140,7 +140,7 @@ func (r *resourceIdp) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 }
 
-func (r *resourceIdp) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *idpResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -152,8 +152,8 @@ func (r *resourceIdp) Configure(_ context.Context, req resource.ConfigureRequest
 	r.client = c
 }
 
-func (r *resourceIdpModel) ValueIdp() client.Idp {
-	res := client.Idp{
+func (r *idpResourceModel) ValueIdp() client.Idp {
+	return client.Idp{
 		Name:               r.Name.ValueString(),
 		ClientID:           r.ClientID.ValueString(),
 		ClientSecret:       r.ClientSecret.ValueString(),
@@ -168,17 +168,16 @@ func (r *resourceIdpModel) ValueIdp() client.Idp {
 		DefaultOrgMapping:  r.DefaultOrgMapping.ValueStringPointer(),
 		Tags:               r.Tags.ValueStringPointer(),
 	}
-	return res
 }
 
-func (data *resourceIdpModel) pushComputedParams(res *client.Idp) {
+func (data *idpResourceModel) pushComputedParams(res *client.Idp) {
 	data.AutoProvision = types.BoolPointerValue(res.AutoProvision)
 	data.DefaultRoleMapping = types.StringPointerValue(res.DefaultRoleMapping)
 	data.DefaultOrgMapping = types.StringPointerValue(res.DefaultOrgMapping)
 }
 
-func (r *resourceIdp) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data resourceIdpModel
+func (r *idpResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data idpResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -207,8 +206,8 @@ func (r *resourceIdp) Create(ctx context.Context, req resource.CreateRequest, re
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *resourceIdp) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var data resourceIdpModel
+func (r *idpResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var data idpResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -242,8 +241,8 @@ func (r *resourceIdp) Read(ctx context.Context, req resource.ReadRequest, resp *
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *resourceIdp) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data, state resourceIdpModel
+func (r *idpResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data, state idpResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -264,8 +263,8 @@ func (r *resourceIdp) Update(ctx context.Context, req resource.UpdateRequest, re
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *resourceIdp) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data resourceIdpModel
+func (r *idpResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var data idpResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -278,7 +277,7 @@ func (r *resourceIdp) Delete(ctx context.Context, req resource.DeleteRequest, re
 	}
 }
 
-func (r *resourceIdp) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *idpResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// TODO
 	// Import format: org_id
 	// resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("org_id"), req.ID)...)

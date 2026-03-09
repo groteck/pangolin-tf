@@ -7,12 +7,15 @@ import (
 	"strconv"
 
 	"github.com/groteck/terraform-provider-pangolin/internal/client"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -32,7 +35,7 @@ type targetResourceModel struct {
 	ResourceID          types.Int64  `tfsdk:"resource_id"`
 	SiteID              types.Int64  `tfsdk:"site_id"`
 	IP                  types.String `tfsdk:"ip"`
-	Port                types.Int64  `tfsdk:"port"`
+	Port                types.Int32  `tfsdk:"port"`
 	Method              types.String `tfsdk:"method"`
 	Enabled             types.Bool   `tfsdk:"enabled"`
 	HCEnabled           types.Bool   `tfsdk:"hc_enabled"`
@@ -40,7 +43,7 @@ type targetResourceModel struct {
 	HCScheme            types.String `tfsdk:"hc_scheme"`
 	HCMode              types.String `tfsdk:"hc_mode"`
 	HCHostname          types.String `tfsdk:"hc_hostname"`
-	HCPort              types.Int64  `tfsdk:"hc_port"`
+	HCPort              types.Int32  `tfsdk:"hc_port"`
 	HCInterval          types.Int64  `tfsdk:"hc_interval"`
 	HCUnhealthyInterval types.Int64  `tfsdk:"hc_unhealthy_interval"`
 	HCTimeout           types.Int64  `tfsdk:"hc_timeout"`
@@ -85,7 +88,7 @@ func (r *targetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Required:            true,
 				MarkdownDescription: "The IP address of the target.",
 			},
-			"port": schema.Int64Attribute{
+			"port": schema.Int32Attribute{
 				Required:            true,
 				MarkdownDescription: "The port of the target.",
 			},
@@ -100,8 +103,12 @@ func (r *targetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				MarkdownDescription: "Whether the target is enabled.",
 			},
 			"hc_enabled": schema.BoolAttribute{
+                Computed:            true,
 				Optional:            true,
 				MarkdownDescription: "Whether health checks are enabled.",
+                PlanModifiers: []planmodifier.Bool{
+                    boolplanmodifier.UseStateForUnknown(),
+                },
 			},
 			"hc_path": schema.StringAttribute{
 				Optional:            true,
@@ -119,7 +126,7 @@ func (r *targetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Optional:            true,
 				MarkdownDescription: "The health check hostname.",
 			},
-			"hc_port": schema.Int64Attribute{
+			"hc_port": schema.Int32Attribute{
 				Optional:            true,
 				MarkdownDescription: "The health check port.",
 			},
@@ -169,7 +176,14 @@ func (r *targetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			},
 			"priority": schema.Int64Attribute{
 				Optional:            true,
+                Computed:            true,
 				MarkdownDescription: "The priority of the target.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+                Validators: []validator.Int64{
+                    int64validator.Between(1, 1000),
+                },
 			},
 		},
 	}
@@ -189,6 +203,40 @@ func (r *targetResource) Configure(_ context.Context, req resource.ConfigureRequ
 	r.client = c
 }
 
+func (r *targetResourceModel) ValueTarget() client.Target {
+    return client.Target{
+        SiteID: r.SiteID.ValueInt64(),
+        IP: r.IP.ValueString(),
+        Port: r.Port.ValueInt32(),
+        Method: r.Method.ValueStringPointer(),
+        Enabled: r.Enabled.ValueBoolPointer(),
+        HCEnabled: nilIfUnknown(r.HCEnabled, r.HCEnabled.ValueBoolPointer),
+        HCPath: r.HCPath.ValueStringPointer(),
+        HCScheme: r.HCScheme.ValueStringPointer(),
+        HCMode: r.HCMode.ValueStringPointer(),
+        HCHostname: r.HCHostname.ValueStringPointer(),
+        HCPort: r.HCPort.ValueInt32Pointer(),
+        HCInterval: r.HCInterval.ValueInt64Pointer(),
+        HCUnhealthyInterval: r.HCUnhealthyInterval.ValueInt64Pointer(),
+        HCTimeout: r.HCTimeout.ValueInt64Pointer(),
+        HCFollowRedirects: r.HCFollowRedirects.ValueBoolPointer(),
+        HCMethod: r.HCMethod.ValueStringPointer(),
+        HCStatus: r.HCStatus.ValueInt64Pointer(),
+        HCTlsServerName: r.HCTlsServerName.ValueStringPointer(),
+        Path: r.Path.ValueStringPointer(),
+        PathMatchType: r.PathMatchType.ValueStringPointer(),
+        RewritePath: r.RewritePath.ValueStringPointer(),
+        RewritePathType: r.RewritePathType.ValueStringPointer(),
+	Priority: nilIfUnknown(r.Priority, r.Priority.ValueInt64Pointer),
+    }
+}
+
+func (data *targetResourceModel) pushComputedParams(res *client.Target) {
+    data.Enabled = types.BoolPointerValue(res.Enabled)
+    data.Priority = types.Int64PointerValue(res.Priority)
+    data.HCEnabled = types.BoolPointerValue(res.HCEnabled)
+}
+
 func (r *targetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data targetResourceModel
 
@@ -197,21 +245,7 @@ func (r *targetResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	target := &client.Target{
-		SiteID:  int(data.SiteID.ValueInt64()),
-		IP:      data.IP.ValueString(),
-		Port:    int(data.Port.ValueInt64()),
-		Enabled: data.Enabled.ValueBool(),
-	}
-
-	if !data.Method.IsNull() {
-		s := data.Method.ValueString()
-		target.Method = &s
-	}
-	if !data.HCEnabled.IsNull() {
-		b := data.HCEnabled.ValueBool()
-		target.HCEnabled = &b
-	}
+	target := data.ValueTarget()
 
 	created, err := r.client.CreateTarget(int(data.ResourceID.ValueInt64()), target)
 	if err != nil {
@@ -220,6 +254,7 @@ func (r *targetResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 
 	data.ID = types.Int64Value(int64(created.ID))
+    data.pushComputedParams(created)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -244,10 +279,29 @@ func (r *targetResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
+    data.ResourceID = types.Int64PointerValue(target.ResourceID)
 	data.SiteID = types.Int64Value(int64(target.SiteID))
 	data.IP = types.StringValue(target.IP)
-	data.Port = types.Int64Value(int64(target.Port))
-	data.Enabled = types.BoolValue(target.Enabled)
+    data.Port = types.Int32Value(target.Port)
+    data.Method = types.StringPointerValue(target.Method)
+    data.HCEnabled = types.BoolPointerValue(target.HCEnabled)
+    data.HCPath = types.StringPointerValue(target.HCPath)
+    data.HCScheme = types.StringPointerValue(target.HCScheme)
+    data.HCMode = types.StringPointerValue(target.HCMode)
+    data.HCHostname = types.StringPointerValue(target.HCHostname)
+    data.HCPort = types.Int32PointerValue(target.HCPort)
+    data.HCInterval = types.Int64PointerValue(target.HCInterval)
+    data.HCUnhealthyInterval = types.Int64PointerValue(target.HCUnhealthyInterval)
+    data.HCTimeout = types.Int64PointerValue(target.HCTimeout)
+    data.HCFollowRedirects = types.BoolPointerValue(target.HCFollowRedirects)
+    data.HCMethod = types.StringPointerValue(target.HCMethod)
+    data.HCStatus = types.Int64PointerValue(target.HCStatus)
+    data.HCTlsServerName = types.StringPointerValue(target.HCTlsServerName)
+    data.Path = types.StringPointerValue(target.Path)
+    data.PathMatchType = types.StringPointerValue(target.PathMatchType)
+    data.RewritePath = types.StringPointerValue(target.RewritePath)
+    data.RewritePathType = types.StringPointerValue(target.RewritePathType)
+    data.pushComputedParams(target)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -261,21 +315,16 @@ func (r *targetResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	target := &client.Target{
-		SiteID:  int(data.SiteID.ValueInt64()),
-		IP:      data.IP.ValueString(),
-		Port:    int(data.Port.ValueInt64()),
-		Enabled: data.Enabled.ValueBool(),
-		Method:  data.Method.ValueStringPointer(),
-	}
+	target := data.ValueTarget()
 
-	_, err := r.client.UpdateTarget(int(state.ID.ValueInt64()), target)
+	updated, err := r.client.UpdateTarget(int(state.ID.ValueInt64()), target)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating target", err.Error())
 		return
 	}
 
 	data.ID = state.ID
+    data.pushComputedParams(updated)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

@@ -572,30 +572,31 @@ func (c *Client) DeleteIdp(idpID int64) error {
 // Target definitions
 type Target struct {
 	ID                  int            `json:"targetId,omitempty"`
-	SiteID              int            `json:"siteId"`
+	ResourceID          *int64         `json:"resourceId,omitempty"`
+	SiteID              int64          `json:"siteId"`
 	IP                  string         `json:"ip"`
-	Port                int            `json:"port"`
+	Port                int32          `json:"port"`
 	Method              *string        `json:"method,omitempty"`
-	Enabled             bool           `json:"enabled"`
+	Enabled             *bool          `json:"enabled,omitempty"`
 	HCEnabled           *bool          `json:"hcEnabled,omitempty"`
 	HCPath              *string        `json:"hcPath,omitempty"`
 	HCScheme            *string        `json:"hcScheme,omitempty"`
 	HCMode              *string        `json:"hcMode,omitempty"`
 	HCHostname          *string        `json:"hcHostname,omitempty"`
-	HCPort              *int           `json:"hcPort,omitempty"`
-	HCInterval          *int           `json:"hcInterval,omitempty"`
-	HCUnhealthyInterval *int           `json:"hcUnhealthyInterval,omitempty"`
-	HCTimeout           *int           `json:"hcTimeout,omitempty"`
+	HCPort              *int32         `json:"hcPort,omitempty"`
+	HCInterval          *int64         `json:"hcInterval,omitempty"`
+	HCUnhealthyInterval *int64         `json:"hcUnhealthyInterval,omitempty"`
+	HCTimeout           *int64         `json:"hcTimeout,omitempty"`
 	HCHeaders           []TargetHeader `json:"hcHeaders,omitempty"`
 	HCFollowRedirects   *bool          `json:"hcFollowRedirects,omitempty"`
 	HCMethod            *string        `json:"hcMethod,omitempty"`
-	HCStatus            *int           `json:"hcStatus,omitempty"`
+	HCStatus            *int64         `json:"hcStatus,omitempty"`
 	HCTlsServerName     *string        `json:"hcTlsServerName,omitempty"`
 	Path                *string        `json:"path,omitempty"`
 	PathMatchType       *string        `json:"pathMatchType,omitempty"`
 	RewritePath         *string        `json:"rewritePath,omitempty"`
 	RewritePathType     *string        `json:"rewritePathType,omitempty"`
-	Priority            *int           `json:"priority,omitempty"`
+	Priority            *int64         `json:"priority,omitempty"`
 }
 
 type TargetHeader struct {
@@ -603,16 +604,10 @@ type TargetHeader struct {
 	Value string `json:"value"`
 }
 
-func (c *Client) CreateTarget(resID int, target *Target) (*Target, error) {
+func (c *Client) CreateTarget(resID int, target Target) (*Target, error) {
 	path := fmt.Sprintf("/resource/%d/target", resID)
-	body := map[string]interface{}{
-		"siteId":  target.SiteID,
-		"ip":      target.IP,
-		"port":    target.Port,
-		"enabled": target.Enabled,
-	}
-	// Add other optional fields if needed...
-	data, err := c.doRequest("PUT", path, body)
+	target.ResourceID = nil
+	data, err := c.doRequest("PUT", path, target)
 	if err != nil {
 		return nil, err
 	}
@@ -632,15 +627,10 @@ func (c *Client) GetTarget(targetID int) (*Target, error) {
 	return &out, err
 }
 
-func (c *Client) UpdateTarget(targetID int, target *Target) (*Target, error) {
+func (c *Client) UpdateTarget(targetID int, target Target) (*Target, error) {
 	path := fmt.Sprintf("/target/%d", targetID)
-	body := map[string]interface{}{
-		"siteId":  target.SiteID,
-		"ip":      target.IP,
-		"port":    target.Port,
-		"enabled": target.Enabled,
-	}
-	data, err := c.doRequest("POST", path, body)
+	target.ResourceID = nil
+	data, err := c.doRequest("POST", path, target)
 	if err != nil {
 		return nil, err
 	}
